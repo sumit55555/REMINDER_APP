@@ -15,7 +15,12 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true, 
+           "config": {
+        "usesBackgroundMode": true
+      }
+
+      
     },
     "android": {
       "adaptiveIcon": {
