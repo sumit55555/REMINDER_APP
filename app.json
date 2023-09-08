@@ -15,21 +15,25 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true, 
-           "config": {
+      "supportsTablet": true,
+      "config": {
         "usesBackgroundMode": true
       }
-
-      
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.sumit1122334455.ReminderCalendarApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ec9d46fa-1040-4369-bc16-231871bd0489"
+      }
     }
   }
 }

@@ -16,6 +16,7 @@
 // import DateTimePicker from "@react-native-community/datetimepicker";
 // import { Ionicons, FontAwesome } from "@expo/vector-icons";
 // import RNPickerSelect from "react-native-picker-select";
+// import styles from "./styles";
 
 // const ReminderScreen = () => {
 //   const [reminders, setReminders] = useState([]);
@@ -26,7 +27,9 @@
 //   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 //   const [editingReminder, setEditingReminder] = useState(null);
 //   const [editedNote, setEditedNote] = useState("");
-//   const [selectedCategory, setSelectedCategory] = useState("Personal"); // Default category
+//   const [selectedCategory, setSelectedCategory] = useState("Personal");
+//   const [repeatInterval, setRepeatInterval] = useState("none");
+//   const [editRepeatInterval, setEditRepeatInterval] = useState("none");
 
 //   const handleDateChange = (event, date) => {
 //     if (date !== undefined) {
@@ -35,7 +38,6 @@
 //     }
 //     setShowDatePicker(Platform.OS === "ios");
 //   };
-
 //   const addReminder = () => {
 //     const currentTime = new Date();
 //     if (selectedDate <= currentTime) {
@@ -49,10 +51,12 @@
 //       note: userNote,
 //       alerted: false,
 //       category: selectedCategory,
+//       repeatInterval, // Store the repeat interval
 //     };
 
 //     setReminders([...reminders, newReminder]);
 //     setUserNote("");
+//     setRepeatInterval("none"); // Reset the repeat interval
 //     setShowDatePicker(false);
 //     setShowAddReminderButton(false);
 //   };
@@ -61,7 +65,8 @@
 //     setEditingReminder(reminder);
 //     setEditedNote(reminder.note);
 //     setSelectedDate(reminder.date);
-//     setSelectedCategory(reminder.category); // Populate the category in the edit modal
+//     setSelectedCategory(reminder.category);
+//     setEditRepeatInterval(reminder.repeatInterval); // Set the repeat interval for editing
 //     setIsEditModalVisible(true);
 //   };
 
@@ -74,6 +79,7 @@
 //           note: editedNote,
 //           alerted: false,
 //           category: selectedCategory,
+//           repeatInterval: editRepeatInterval, // Include the edited repeat interval
 //         };
 //       }
 //       return reminder;
@@ -93,7 +99,31 @@
 //               "Reminder",
 //               `It's time for your reminder!\nNote: ${reminder.note}`
 //             );
-//             return { ...reminder, alerted: true };
+//             if (reminder.repeatInterval !== "none") {
+//               // Schedule the next reminder based on the repeat interval
+//               const nextReminderDate = new Date(reminder.date);
+//               switch (reminder.repeatInterval) {
+//                 case "10s":
+//                   nextReminderDate.setSeconds(
+//                     nextReminderDate.getSeconds() + 10
+//                   );
+//                   break;
+//                 case "1w":
+//                   nextReminderDate.setDate(nextReminderDate.getDate() + 7);
+//                   break;
+//                 case "2d":
+//                   nextReminderDate.setDate(nextReminderDate.getDate() + 2);
+//                   break;
+//                 // Add more cases for other repeat intervals
+//                 default:
+//                   // Do nothing for "none" or unsupported intervals
+//                   break;
+//               }
+//               reminder.date = nextReminderDate;
+//             } else {
+//               reminder.alerted = true;
+//             }
+//             return { ...reminder };
 //           }
 //           return reminder;
 //         })
@@ -103,7 +133,22 @@
 //     return () => {
 //       clearInterval(interval);
 //     };
-//   }, []);
+//   }, [reminders]);
+//   const getRepeatLabel = (repeatInterval) => {
+//     switch (repeatInterval) {
+//       case "none":
+//         return "None";
+//       case "10s":
+//         return "Every 10 seconds";
+//       case "1w":
+//         return "Once a week";
+//       case "2d":
+//         return "Once every two days";
+//       // Add more cases for other repeat intervals
+//       default:
+//         return "Unknown";
+//     }
+//   };
 
 //   const ReminderItem = ({ reminder }) => (
 //     <TouchableOpacity
@@ -114,6 +159,9 @@
 //         <Text style={styles.dateText}>{reminder.date.toLocaleString()}</Text>
 //         <Text style={styles.noteText}>Note: {reminder.note}</Text>
 //         <Text style={styles.categoryText}>Category: {reminder.category}</Text>
+//         <Text style={styles.repeatText}>
+//           Repeat: {getRepeatLabel(reminder.repeatInterval)}
+//         </Text>
 //       </View>
 //       <View style={styles.iconContainer}>
 //         {reminder.alerted && (
@@ -146,6 +194,17 @@
 //         placeholder="Add a note..."
 //         onChangeText={setUserNote}
 //         value={userNote}
+//       />
+//       <RNPickerSelect
+//         onValueChange={(itemValue) => setRepeatInterval(itemValue)}
+//         items={[
+//           { label: "None", value: "none" },
+//           { label: "Every 10 seconds", value: "10s" },
+//           { label: "Once a week", value: "1w" },
+//           { label: "Once every two days", value: "2d" },
+//           // Add more options as needed
+//         ]}
+//         value={repeatInterval}
 //       />
 //       <RNPickerSelect
 //         onValueChange={(itemValue) => setSelectedCategory(itemValue)}
@@ -199,10 +258,22 @@
 //             value={editedNote}
 //           />
 //           <RNPickerSelect
+//             onValueChange={(itemValue) => setEditRepeatInterval(itemValue)}
+//             items={[
+//               { label: "None", value: "none" },
+//               { label: "Every 10 seconds", value: "10s" },
+//               { label: "Once a week", value: "1w" },
+//               { label: "Once every two days", value: "2d" },
+//               // Add more options as needed
+//             ]}
+//             value={editRepeatInterval}
+//           />
+//           <RNPickerSelect
 //             onValueChange={(itemValue) => setSelectedCategory(itemValue)}
 //             items={[
 //               { label: "Personal", value: "Personal" },
 //               { label: "Work", value: "Work" },
+//               // Add more category options as needed
 //             ]}
 //             value={selectedCategory}
 //           />
@@ -213,65 +284,5 @@
 //     </View>
 //   );
 // };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     padding: 16,
-//     alignItems: "center",
-//     justifyContent: "flex-start",
-//   },
-//   heading: {
-//     fontSize: 18,
-//     paddingTop: "5%",
-//     fontWeight: "bold",
-//     marginBottom: 10,
-//   },
-//   infoContainer: {
-//     flex: 1,
-//     flexDirection: "column",
-//   },
-//   reminderItem: {
-//     borderBottomWidth: 1,
-//     borderColor: "#ccc",
-//     paddingVertical: 12,
-//     paddingHorizontal: 11,
-//     flexDirection: "row",
-//     alignItems: "center",
-//     justifyContent: "space-between",
-//     minHeight: 50,
-//   },
-//   iconContainer: {
-//     width: 30,
-//     alignItems: "center",
-//     marginLeft: "20%",
-//   },
-//   noteInput: {
-//     width: "100%",
-//     height: 40,
-//     borderWidth: 1,
-//     borderColor: "#ccc",
-//     padding: 8,
-//     marginBottom: 10,
-//   },
-//   noteText: {
-//     fontSize: 12,
-//     fontStyle: "italic",
-//     color: "#777",
-//   },
-//   reminderList: {
-//     width: "90%",
-//   },
-//   editModal: {
-//     flex: 1,
-//     justifyContent: "center",
-//     alignItems: "center",
-//   },
-//   categoryText: {
-//     fontSize: 12,
-//     fontStyle: "italic",
-//     color: "#777",
-//   },
-// });
 
 // export default ReminderScreen;

@@ -1,41 +1,18 @@
 import { StyleSheet } from "react-native";
 
-export default StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
     alignItems: "center",
     justifyContent: "flex-start",
+    paddingTop: Platform.OS === "ios" ? 20 : 0,
   },
   heading: {
     fontSize: 18,
     paddingTop: "5%",
     fontWeight: "bold",
     marginBottom: 10,
-  },
-  customButton: {
-    backgroundColor: "red",
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
-    alignItems: "center",
-  },
-  customButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  customModal: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "red", // Modal background color
-  },
-  customModalText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "white", // Text color inside the modal
-    marginBottom: 20,
   },
   infoContainer: {
     flex: 1,
@@ -83,3 +60,4 @@ export default StyleSheet.create({
     color: "#777",
   },
 });
+export default styles;

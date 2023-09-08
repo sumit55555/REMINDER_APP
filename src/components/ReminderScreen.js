@@ -13,17 +13,12 @@ import {
   Picker,
   TouchableWithoutFeedback,
 } from "react-native";
-import ModalDropdown from "react-native-modal-dropdown";
-
-import styles from "./styles";
-
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import RNPickerSelect from "react-native-picker-select";
+import styles from "./styles";
 
 const ReminderScreen = () => {
-  let normalReminderInterval;
-
   const [reminders, setReminders] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -32,13 +27,9 @@ const ReminderScreen = () => {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingReminder, setEditingReminder] = useState(null);
   const [editedNote, setEditedNote] = useState("");
-  const [isCustomModalVisible, setIsCustomModalVisible] = useState(false);
-
-  const [alertInterval, setAlertInterval] = useState("none");
-  const [isAlertActive, setIsAlertActive] = useState(false);
-  const [isCustomInterval, setIsCustomInterval] = useState(false);
-
-  const [selectedCategory, setSelectedCategory] = useState("Personal"); // Default category
+  const [selectedCategory, setSelectedCategory] = useState("Personal");
+  const [repeatInterval, setRepeatInterval] = useState("none");
+  const [editRepeatInterval, setEditRepeatInterval] = useState("none");
 
   const handleDateChange = (event, date) => {
     if (date !== undefined) {
@@ -47,24 +38,48 @@ const ReminderScreen = () => {
     }
     setShowDatePicker(Platform.OS === "ios");
   };
-
   const addReminder = () => {
     const currentTime = new Date();
     if (selectedDate <= currentTime) {
       Alert.alert("Invalid Reminder", "Please choose a future date and time.");
       return;
     }
+    function getDateForWeekdayInMonth(year, month, weekday, weekNumber) {
+      const date = new Date(year, month, 1);
 
+      while (date.getDay() !== getDayNumber(weekday)) {
+        date.setDate(date.getDate() + 1);
+      }
+
+      date.setDate(date.getDate() + (weekNumber - 1) * 7);
+
+      return date;
+    }
+
+    function getDayNumber(weekday) {
+      const weekdays = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
+      return weekdays.indexOf(weekday);
+    }
     const newReminder = {
       id: Date.now().toString(),
       date: selectedDate,
       note: userNote,
       alerted: false,
       category: selectedCategory,
+      repeatInterval,
     };
 
     setReminders([...reminders, newReminder]);
     setUserNote("");
+    setRepeatInterval("none");
     setShowDatePicker(false);
     setShowAddReminderButton(false);
   };
@@ -73,7 +88,8 @@ const ReminderScreen = () => {
     setEditingReminder(reminder);
     setEditedNote(reminder.note);
     setSelectedDate(reminder.date);
-    setSelectedCategory(reminder.category); // Populate the category in the edit modal
+    setSelectedCategory(reminder.category);
+    setEditRepeatInterval(reminder.repeatInterval);
     setIsEditModalVisible(true);
   };
 
@@ -86,6 +102,7 @@ const ReminderScreen = () => {
           note: editedNote,
           alerted: false,
           category: selectedCategory,
+          repeatInterval: editRepeatInterval,
         };
       }
       return reminder;
@@ -105,9 +122,61 @@ const ReminderScreen = () => {
               "Reminder",
               `It's time for your reminder!\nNote: ${reminder.note}`
             );
-            return { ...reminder, alerted: true };
+            if (reminder.repeatInterval !== "none") {
+              const nextReminderDate = new Date(reminder.date);
+              switch (reminder.repeatInterval) {
+                case "10s":
+                  nextReminderDate.setSeconds(
+                    nextReminderDate.getSeconds() + 10
+                  );
+                  break;
+                case "1w":
+                  nextReminderDate.setDate(nextReminderDate.getDate() + 7);
+                  break;
+                case "2d":
+                  nextReminderDate.setDate(nextReminderDate.getDate() + 2);
+                  break;
+                case "daily":
+                  nextReminderDate.setDate(nextReminderDate.getDate() + 1);
+                  break;
+                case "monthly":
+                  nextReminderDate.setMonth(nextReminderDate.getMonth() + 1);
+                  break;
+                case "yearly":
+                  nextReminderDate.setFullYear(
+                    nextReminderDate.getFullYear() + 1
+                  );
+                  break;
+                case "custom":
+                  if (reminder.customInterval) {
+                    const [weekNumber, weekday] =
+                      reminder.customInterval.split(" ");
+                    const nextReminderDate = getDateForWeekdayInMonth(
+                      currentTime.getFullYear(),
+                      currentTime.getMonth() + 1,
+                      weekday,
+                      parseInt(weekNumber)
+                    );
+
+                    if (currentTime >= nextReminderDate) {
+                      nextReminderDate.setMonth(
+                        nextReminderDate.getMonth() + 1
+                      );
+                    }
+
+                    reminder.date = nextReminderDate;
+                  }
+                  break;
+
+                default:
+                  break;
+              }
+              reminder.date = nextReminderDate;
+            } else {
+              reminder.alerted = true;
+            }
           }
-          return reminder;
+          return { ...reminder };
         })
       );
     }, 1000);
@@ -115,7 +184,30 @@ const ReminderScreen = () => {
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [reminders]);
+
+  const getRepeatLabel = (repeatInterval) => {
+    switch (repeatInterval) {
+      case "none":
+        return "None";
+      case "10s":
+        return "Every 10 seconds";
+      case "1w":
+        return "Once a week";
+      case "2d":
+        return "Once every two days";
+      case "daily":
+        return "Daily at same time";
+      case "monthly":
+        return "Monthly on same day ";
+      case "yearly":
+        return "Yearly on same day";
+      case "custom":
+        return "Custom";
+      default:
+        return "Unknown";
+    }
+  };
 
   const ReminderItem = ({ reminder }) => (
     <TouchableOpacity
@@ -126,6 +218,9 @@ const ReminderScreen = () => {
         <Text style={styles.dateText}>{reminder.date.toLocaleString()}</Text>
         <Text style={styles.noteText}>Note: {reminder.note}</Text>
         <Text style={styles.categoryText}>Category: {reminder.category}</Text>
+        <Text style={styles.repeatText}>
+          Repeat: {getRepeatLabel(reminder.repeatInterval)}
+        </Text>
       </View>
       <View style={styles.iconContainer}>
         {reminder.alerted && (
@@ -145,65 +240,6 @@ const ReminderScreen = () => {
       </TouchableOpacity>
     </TouchableOpacity>
   );
-  const openCustomModal = () => {
-    setIsCustomModalVisible(true);
-  };
-
-  const closeCustomModal = () => {
-    setIsCustomModalVisible(false);
-  };
-  const handleAlertIntervalChange = (value) => {
-    if (value === "Select Alert Interval") {
-      setIsAlertActive(false); // No custom interval selected
-      setIsCustomInterval(false);
-      setAlertInterval("none"); // Reset alert interval
-    } else if (value === "Normal Reminder") {
-      setIsAlertActive(true); // Normal reminder (default interval)
-      setIsCustomInterval(false);
-      setAlertInterval("none"); // Reset alert interval
-    } else {
-      setIsAlertActive(true); // Custom interval selected
-      setIsCustomInterval(true);
-      setAlertInterval(value);
-    }
-  };
-
-  const startAlert = () => {
-    // Clear any existing interval
-    clearInterval(normalReminderInterval);
-
-    if (isAlertActive && isCustomInterval) {
-      // Custom interval selected
-      switch (alertInterval) {
-        case "5seconds":
-          normalReminderInterval = setInterval(() => {
-            Alert.alert("Reminder", "It's time for your reminder!");
-          }, 5000);
-          break;
-        case "1week":
-          normalReminderInterval = setInterval(() => {
-            Alert.alert("Reminder", "It's time for your weekly reminder!");
-          }, 7 * 24 * 60 * 60 * 1000);
-          break;
-        case "2days":
-          normalReminderInterval = setInterval(() => {
-            Alert.alert(
-              "Reminder",
-              "It's time for your reminder every 2 days!"
-            );
-          }, 2 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          setIsAlertActive(false);
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (isAlertActive) {
-      startAlert();
-    }
-  }, [isAlertActive]);
 
   return (
     <View style={styles.container}>
@@ -212,24 +248,27 @@ const ReminderScreen = () => {
         title="Select Date and Time"
         onPress={() => setShowDatePicker(true)}
       />
-      <ModalDropdown
-        options={[
-          "Select Alert Interval",
-          "Normal Reminder",
-          "Every 5 seconds",
-          "Once a week",
-          "Once every 2 days",
-        ]}
-        defaultValue="Select Alert Interval"
-        onSelect={(index, value) => handleAlertIntervalChange(value)}
-      />
-
       <TextInput
         style={styles.noteInput}
         placeholder="Add a note..."
         onChangeText={setUserNote}
         value={userNote}
       />
+      <RNPickerSelect
+        onValueChange={(itemValue) => setEditRepeatInterval(itemValue)}
+        items={[
+          { label: "None", value: "none" },
+          { label: "Every 10 seconds", value: "10s" },
+          { label: "Once a week", value: "1w" },
+          { label: "Once every two days", value: "2d" },
+          { label: "Daily", value: "daily" },
+          { label: "Monthly on the same day", value: "monthly" },
+          { label: "Yearly on the same day", value: "yearly" },
+          { label: "Custom", value: "custom" },
+        ]}
+        value={editRepeatInterval}
+      />
+
       <RNPickerSelect
         onValueChange={(itemValue) => setSelectedCategory(itemValue)}
         items={[
@@ -260,7 +299,6 @@ const ReminderScreen = () => {
         renderItem={({ item }) => <ReminderItem reminder={item} />}
       />
 
-      {/* Edit Reminder Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -268,7 +306,6 @@ const ReminderScreen = () => {
       >
         <View style={styles.editModal}>
           <Text>Edit Reminder</Text>
-
           <DateTimePicker
             value={selectedDate}
             mode="datetime"
@@ -276,12 +313,25 @@ const ReminderScreen = () => {
             display="default"
             onChange={(event, date) => setSelectedDate(date)}
           />
-
           <TextInput
             style={styles.noteInput}
             placeholder="Edit note..."
             onChangeText={setEditedNote}
             value={editedNote}
+          />
+          <RNPickerSelect
+            onValueChange={(itemValue) => setEditRepeatInterval(itemValue)}
+            items={[
+              { label: "None", value: "none" },
+              { label: "Every 10 seconds", value: "10s" },
+              { label: "Once a week", value: "1w" },
+              { label: "Once every two days", value: "2d" },
+              { label: "Daily", value: "daily" },
+              { label: "Monthly on the same day", value: "monthly" },
+              { label: "Yearly on the same day", value: "yearly" },
+              { label: "Custom", value: "custom" },
+            ]}
+            value={editRepeatInterval}
           />
           <RNPickerSelect
             onValueChange={(itemValue) => setSelectedCategory(itemValue)}
@@ -295,8 +345,6 @@ const ReminderScreen = () => {
           <Button title="Cancel" onPress={() => setIsEditModalVisible(false)} />
         </View>
       </Modal>
-
-      {/* Custom Modal */}
     </View>
   );
 };
